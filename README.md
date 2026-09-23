@@ -122,3 +122,5 @@ history, quotes, bars, news) directly in chat. It is not used by the bot.
 | `events.json` | macro event blackout dates |
 | `replay.py` | read-only replay of past days through the rules |
 | `report.py` | end-of-day report posted to the `daily-report` issue |
+| `noise.py` | noise-area momentum rules (Zarattini et al. 2024) and 10-year test |
+| `shadow.py` | QQQ noise-area forward test, logging only (in the daily report) |
