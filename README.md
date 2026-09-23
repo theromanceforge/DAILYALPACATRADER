@@ -98,6 +98,26 @@ nothing.
 
 Do not commit keys.
 
+### External timer (why the bot doesn't rely on GitHub's schedule alone)
+
+GitHub's `schedule` trigger never fired for this repo after setup (zero
+scheduled runs, even after moving the cron off the busy :00 slots). So an
+outside timer (cron-job.org) starts the workflows through GitHub's API:
+
+- `daytrader`: every 10 minutes, Mon–Fri 12:00–21:59 UTC, `POST
+  /repos/theromanceforge/DAILYALPACATRADER/actions/workflows/daytrader.yml/dispatches`
+  with body `{"ref":"main"}`.
+- `report`: Mon–Fri 21:37 UTC, same for `report.yml` with
+  `{"ref":"main","inputs":{"date":""}}`.
+- Auth: a fine-grained GitHub token limited to this repo with **Actions:
+  read and write** only, stored only in cron-job.org. Renew it before it
+  expires; if it lapses the jobs return 401 and the bot stops running.
+
+The GitHub cron stays as a backup. Running both is safe: the `daytrader`
+concurrency group runs one cycle at a time, and `entered_today()` checks
+Alpaca's order history, so a second cycle can't make a second entry. To
+turn the timer off, pause the jobs in cron-job.org.
+
 ## Read-only Alpaca access in Claude chats (optional)
 
 `.mcp.json` starts Alpaca's official MCP server (`scripts/alpaca-mcp.sh`) so
