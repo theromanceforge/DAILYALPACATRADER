@@ -1,7 +1,7 @@
-# DAILYALPACATRADER
+# Daily Trendy Trader
 
-Intraday day-trading bot for SPY/QQQ on an **Alpaca PAPER** account.
-A research sandbox, not live cash.
+Intraday day-trading bot for SPY/QQQ on an **Alpaca PAPER** account
+(repo: DAILYALPACATRADER). A research sandbox, not live cash.
 
 It started as the intraday desk in
 [ALBOT](https://github.com/theromanceforge/ALBOT), which now runs a daily
@@ -46,6 +46,38 @@ Read-only: it places no orders. It compares the current rules with the older
 ones. Change `engine.py` on a branch, replay it, and only merge changes that
 hold up on months they weren't tuned on.
 
+## How we work (the playbook)
+
+1. **The live paper bot is the baseline.** It keeps running the current
+   rules unchanged while ideas are researched, so live results can be
+   compared with what the replay predicted.
+2. **Every idea goes through the same steps:**
+   1. Build it on a branch. Nothing live changes.
+   2. Replay it over the 8-month history (`days=168`).
+   3. Check it on months it wasn't tuned on (hold out the most recent
+      ~2 months until the end).
+   4. Score it against the current rules: net P&L, trades, win rate,
+      average win / average loss, worst drawdown.
+   5. **Promote only if** it beats the baseline in-sample *and* on the
+      held-out months, with roughly 50+ trades. Then PR, and merge only
+      when the owner says so.
+3. **Research direction: trend-following.** Ride strong intraday moves,
+   possibly both long and short, possibly more than one trade a day.
+   The current gap-up rule stays live until something beats it.
+4. **Reporting:**
+   - **Daily:** the `report` workflow comments on the `daily-report`
+     issue after each close (trades, day P&L, equity, total since start).
+     Watch that issue to get it as a notification.
+   - **Weekly (Fridays after the close):** live week vs. replay of the
+     same days, plus research progress.
+5. **Infrastructure follows edge.** 10-minute GitHub Actions cycles are
+   fine for research. Real-time data (websocket) and an always-on host
+   come only once a strategy shows an edge that needs them.
+6. **Real money is out of scope** unless a strategy beats the SPY
+   allocator (ALBOT) on paper, after costs, for several months. If that
+   ever happens, the pattern-day-trader rule ($25k minimum for frequent
+   day trades in a margin account) must be planned for.
+
 ## Setup
 
 1. In Alpaca, create a **separate paper account** for this bot (Alpaca
@@ -73,3 +105,4 @@ Do not commit keys.
 | `watchdog.py` | restarts `scheduler.py` if self-hosted and it stalls |
 | `events.json` | macro event blackout dates |
 | `replay.py` | read-only replay of past days through the rules |
+| `report.py` | end-of-day report posted to the `daily-report` issue |

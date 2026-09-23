@@ -1,0 +1,35 @@
+# End-of-day report: one comment per trading day on the `daily-report`
+# issue. Read-only on Alpaca.
+#
+# 21:30 UTC is after the close year-round: 5:30 PM EDT / 4:30 PM EST.
+# report.py skips holidays using Alpaca's calendar. Run manually with a
+# date to (re)post a past day.
+name: report
+on:
+  schedule:
+    - cron: "30 21 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Trading day YYYY-MM-DD (blank = today)"
+        required: false
+        default: ""
+permissions:
+  contents: read
+  issues: write
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: report
+        env:
+          APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+          APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TZ: America/New_York
+          REPORT_DATE: ${{ inputs.date }}
+        run: python3 report.py "$REPORT_DATE"
