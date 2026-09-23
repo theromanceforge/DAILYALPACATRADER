@@ -1,0 +1,22 @@
+# Read-only intraday momentum test (momentum.py). Places no orders.
+# Runs on pushes to research branches and manually.
+name: momentum
+on:
+  push:
+    branches: ["trend-research", "research/**"]
+    paths: ["momentum.py", "replay.py", ".github/workflows/momentum.yml"]
+  workflow_dispatch:
+jobs:
+  momentum:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: momentum
+        env:
+          APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+          APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+          TZ: America/New_York
+        run: python3 momentum.py
