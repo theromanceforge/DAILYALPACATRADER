@@ -22,8 +22,9 @@ early closes are handled.
   everything is flattened at close − 30 min (3:30 PM normally).
 - **No new entries** inside the `events.json` blackout windows (FOMC, jobs,
   CPI). Add new dates when the log says the list has run out.
-- **Loss halts:** stops trading for the day at −$1,500 and for the week at
-  −$3,000.
+- **Loss halts:** stops trading for the day at −$100 and for the week at
+  −$250. A normal stop-out is about −$15, so these only trip if something
+  is badly wrong (a gap through the stop, a runaway order).
 - **Paper only:** refuses any key that doesn't start with `PK` and any
   non-paper base URL.
 
@@ -74,9 +75,10 @@ hold up on months they weren't tuned on.
    fine for research. Real-time data (websocket) and an always-on host
    come only once a strategy shows an edge that needs them.
 6. **Real money is out of scope** unless a strategy beats the SPY
-   allocator (ALBOT) on paper, after costs, for several months. If that
-   ever happens, the pattern-day-trader rule ($25k minimum for frequent
-   day trades in a margin account) must be planned for.
+   allocator (ALBOT) on paper, after costs, for several months. (The old
+   pattern-day-trader rule and its $25k minimum were retired on 2026-06-04;
+   Alpaca now uses its Intraday Margin framework. Margin and short selling
+   still need at least $2,000 of equity.)
 
 ## Setup
 
