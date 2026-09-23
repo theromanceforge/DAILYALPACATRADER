@@ -113,6 +113,14 @@ def build(day):
                 f"{t['out']:%H:%M} | {t['exit'] or 0:.2f} | {money(t['pl'])} |" if t["out"] else
                 f"| {t['symbol']} | {t['qty']:g} | {t['in']:%H:%M} | {t['entry'] or 0:.2f} | open | – | – |"
             )
+        # GitHub cron runs can start late; record how late the close flatten ran.
+        close_dt = datetime.fromisoformat(f"{day}T{cal[0]['close']}").replace(tzinfo=ET)
+        flat_at = close_dt - timedelta(minutes=engine.FLAT_BEFORE_CLOSE_MIN)
+        for t in trips:
+            if t["out"] and t["out"] >= flat_at:
+                lag = (t["out"] - flat_at).total_seconds() / 60
+                lines.append(f"\n**Flatten:** {t['symbol']} sold {t['out']:%H:%M} "
+                             f"(target {flat_at:%H:%M}, {lag:.0f} min late)")
     else:
         lines.append("**Trades:** none (no setup scored ≥ 75, or blocked by a blackout/halt)")
     total, base = total_since_start(equity)

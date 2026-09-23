@@ -36,8 +36,10 @@ MARKET_OPEN = "09:30"
 MARKET_CLOSE = "16:00"
 EVENTS_PATH = ROOT / "events.json"
 TOY_MAX = 100.0
-DAILY_HALT = -1500.0
-WEEKLY_HALT = -3000.0
+# Sized to the $2,500 cap: a normal 0.6% stop-out is about -$15, so these
+# only trip on a malfunction (gap through the stop, runaway orders).
+DAILY_HALT = -100.0
+WEEKLY_HALT = -250.0
 HALT_STATE_PATH = ROOT / "halt_state.json"
 
 
