@@ -34,9 +34,17 @@ its current rules until a test passes the playbook bar (README).
 - **Verdict:** the published effect has faded (consistent with a 2026
   external retest on 2022-2026 SPX); costs make it a loser.
 
-## 4. Noise-area momentum (Zarattini, Aziz & Barbon 2024): PENDING
+## 4. Noise-area momentum (Zarattini, Aziz & Barbon 2024): PRIMARY FAILED, QQQ LEAD
 - **Rule (paper settings, not tuned):** see `noise.py` docstring. 14-day
   time-of-day bands around max/min(open, prev close); :00/:30 checks; exit on
   max(band, VWAP) trailing stop or the close; vol-targeted size capped at $2,500.
 - **Primary test:** SPY 2024-05 onward (after the paper's sample).
-- **Result:** _pending_
+- **Result:** primary SPY 2024-05..2026-09-22: 507 trades, +$57 before costs,
+  **-$83 after** (t = -0.73). SPY 2016..2024-04 (overlaps paper): +$360 after
+  costs, t = +1.49, positive 2018 and 2020-24; 2025 -$37, 2026 -$101. With the
+  live bot's close-30 flatten: -$52. QQQ (secondary): 2024-05+ +$136 (t = +1.18),
+  2016-2026 +$756 (t = +2.84, Sharpe 0.87).
+- **Verdict:** fails its pre-registered primary test; the SPY effect is weak
+  and has faded since publication. QQQ is the only lead in any test so far,
+  but it was a secondary result, so it needs a fresh forward test (paper,
+  shadow first) before it counts.
