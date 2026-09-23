@@ -1,0 +1,22 @@
+# Read-only noise-area momentum test (noise.py). Places no orders.
+# Runs on pushes to research branches and manually.
+name: noise
+on:
+  push:
+    branches: ["trend-research", "research/**"]
+    paths: ["noise.py", "replay.py", ".github/workflows/noise.yml"]
+  workflow_dispatch:
+jobs:
+  noise:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: noise
+        env:
+          APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+          APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+          TZ: America/New_York
+        run: python3 noise.py
