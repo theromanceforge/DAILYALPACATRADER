@@ -1,4 +1,4 @@
-"""WIN-mode Alpaca paper cycle. Imported by scheduler.py."""
+"""Daily Trendy Trader: one Alpaca paper cycle. Imported by scheduler.py."""
 from __future__ import annotations
 
 import json
