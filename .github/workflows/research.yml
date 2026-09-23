@@ -1,0 +1,27 @@
+# Read-only trend research: candidates vs. live rules on past sessions.
+# Places no orders. Results show in the run's Summary tab.
+# Runs on pushes to research branches (new workflows can't be dispatched
+# until they're on main) and manually.
+name: research
+on:
+  push:
+    branches: ["trend-research", "research/**"]
+    paths: ["research.py", "replay.py", "engine.py", ".github/workflows/research.yml"]
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: research
+        env:
+          APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+          APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+          TZ: America/New_York
+          # Held-out months stay hidden until a candidate is picked.
+          REVEAL_OOS: "0"
+          OOS_PICKS: ""
+        run: python3 research.py --days 168
