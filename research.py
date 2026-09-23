@@ -186,6 +186,12 @@ def candidates():
             for mt in (1, 3):
                 name = f"ORB30 {'L/S' if both else 'long'} trail {trail * 100:.1f}% max {mt}/day"
                 out.append((name, lambda s, tr=trail, b=both, m=mt: trend(s, 30, tr, b, m)))
+    # Round 2: the best round-1 results sat at the widest trail, so
+    # extend that edge for long/short (in-sample only).
+    for trail in (0.010, 0.012, 0.015):
+        for mt in (1, 3):
+            name = f"ORB30 L/S trail {trail * 100:.1f}% max {mt}/day"
+            out.append((name, lambda s, tr=trail, m=mt: trend(s, 30, tr, True, m)))
     return out
 
 
