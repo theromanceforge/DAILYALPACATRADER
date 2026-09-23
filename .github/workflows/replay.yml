@@ -1,0 +1,40 @@
+# Read-only replay of a past session through the desk's rules.
+# Places no orders. Results show in the run's Summary tab.
+name: replay
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "One trading day YYYY-MM-DD (blank = last completed day)"
+        required: false
+        default: ""
+      end:
+        description: "Optional range end YYYY-MM-DD (date becomes the start)"
+        required: false
+        default: ""
+      days:
+        description: "Or: last N trading days, e.g. 63 for ~3 months (overrides date/end)"
+        required: false
+        default: ""
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: replay
+        env:
+          APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+          APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+          TZ: America/New_York
+          REPLAY_DATE: ${{ inputs.date }}
+          REPLAY_END: ${{ inputs.end }}
+          REPLAY_DAYS: ${{ inputs.days }}
+        run: |
+          if [ -n "$REPLAY_DAYS" ]; then
+            python3 replay.py --days "$REPLAY_DAYS"
+          else
+            python3 replay.py "$REPLAY_DATE" "$REPLAY_END"
+          fi

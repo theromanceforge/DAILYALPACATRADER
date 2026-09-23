@@ -1,0 +1,5 @@
+.env
+.alpaca-paper.json
+book.tmp
+__pycache__/
+*.pyc

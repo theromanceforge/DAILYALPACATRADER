@@ -1,0 +1,54 @@
+# Free runner. Fires every 10 minutes in US market hours.
+# Repo secrets: APCA_API_KEY_ID, APCA_API_SECRET_KEY (PK paper only) from a
+# paper account used ONLY by this bot (not the ALBOT allocator account).
+#
+# Cron is in UTC and does not shift for US DST. The window below is
+# widened on purpose to safely cover BOTH EDT (UTC-4) and EST (UTC-5)
+# -- 12-21 UTC = 7:00am-4:50pm through EST and 8:00am-5:50pm through
+# EDT, so every run from the flatten point (close - 30 min) to the close is
+# covered year-round. engine.py's ET-aware time gates no-op on the
+# extra runs outside market hours. If every flatten run is missed,
+# the GTC stop/target legs still protect the position overnight.
+name: daytrader
+on:
+  schedule:
+    - cron: "*/10 12-21 * * 1-5"
+  workflow_dispatch:
+# One cycle at a time: a manual run overlapping a scheduled one could
+# otherwise both see no position and both buy.
+concurrency:
+  group: daytrader
+  cancel-in-progress: false
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: restore halt state
+        uses: actions/cache@v4
+        with:
+          path: halt_state.json
+          key: halt-state-${{ github.run_id }}
+          restore-keys: |
+            halt-state-
+      - name: one cycle
+        env:
+          APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+          APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+          TZ: America/New_York
+        run: |
+          python3 - <<'PY'
+          import scheduler
+          scheduler.cycle()
+          print("ok", scheduler.hhmm())
+          PY
+      - name: save halt state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: halt_state.json
+          key: halt-state-${{ github.run_id }}
+ 
