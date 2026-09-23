@@ -1,13 +1,14 @@
 # End-of-day report: one comment per trading day on the `daily-report`
 # issue. Read-only on Alpaca.
 #
-# 21:30 UTC is after the close year-round: 5:30 PM EDT / 4:30 PM EST.
+# 21:37 UTC is after the close year-round: 5:37 PM EDT / 4:37 PM EST
+# (off the congested :00/:30 slots, where GitHub drops scheduled runs).
 # report.py skips holidays using Alpaca's calendar. Run manually with a
 # date to (re)post a past day.
 name: report
 on:
   schedule:
-    - cron: "30 21 * * 1-5"
+    - cron: "37 21 * * 1-5"
   workflow_dispatch:
     inputs:
       date:
