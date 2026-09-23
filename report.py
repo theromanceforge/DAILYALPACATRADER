@@ -126,6 +126,11 @@ def build(day):
     total, base = total_since_start(equity)
     lines += ["", f"**Equity:** ${equity:,.2f} · **Since start:** {money(total)}"
               + (f" (from ${base:,.2f})" if base else "")]
+    try:
+        import shadow
+        lines += shadow.section(day)
+    except Exception as exc:  # the shadow test must never block the report
+        lines.append(f"\n_QQQ shadow test unavailable: {exc}_")
     st, pos = engine.api(engine.ALPACA, "/v2/positions")
     held = [p for p in pos if isinstance(p, dict)] if st == 200 and isinstance(pos, list) else []
     if held:
