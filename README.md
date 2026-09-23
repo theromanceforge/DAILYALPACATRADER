@@ -1,0 +1,75 @@
+# DAILYALPACATRADER
+
+Intraday day-trading bot for SPY/QQQ on an **Alpaca PAPER** account.
+A research sandbox, not live cash.
+
+It started as the intraday desk in
+[ALBOT](https://github.com/theromanceforge/ALBOT), which now runs a daily
+SPY trend allocator instead. This repo carries the day-trading version on
+separately so it can be developed and tested without touching that account.
+
+## What it does (`engine.py`)
+
+GitHub Actions runs one cycle every 10 minutes on weekdays (`daytrader`
+workflow). Times come from Alpaca's market clock, so holidays and 1:00 PM
+early closes are handled.
+
+- **Entries:** 09:45 to close − 60 min. Buys only when a symbol gapped up
+  **and** is trading in the upper part of today's range (score ≥ 75).
+- **At most one entry per day**, one position at a time, sized to whole
+  shares within a $2,500 notional cap.
+- **Exits:** bracket order with a 0.6% stop and a 1.2% target (GTC legs), and
+  everything is flattened at close − 30 min (3:30 PM normally).
+- **No new entries** inside the `events.json` blackout windows (FOMC, jobs,
+  CPI). Add new dates when the log says the list has run out.
+- **Loss halts:** stops trading for the day at −$1,500 and for the week at
+  −$3,000.
+- **Paper only:** refuses any key that doesn't start with `PK` and any
+  non-paper base URL.
+
+## Honest baseline
+
+Replaying these exact rules over 8 months (Jan–Sep 2026, 168 trading days)
+gave **84 trades, 42 wins / 42 losses, +$12.72 total**. That's roughly
+break-even. The target hit only 3 times; most trades ended at the 3:30 sell.
+Treat this as a starting point for testing ideas, not a money-maker.
+
+## Test ideas before running them (`replay.py`)
+
+Actions → **replay** → Run workflow:
+
+- `date`: one day, with cycle-by-cycle scores and trades
+- `date` + `end`: a range, with summary stats and a per-day table
+- `days`: the last N trading days (e.g. `63` ≈ 3 months, `168` ≈ 8 months)
+
+Read-only: it places no orders. It compares the current rules with the older
+ones. Change `engine.py` on a branch, replay it, and only merge changes that
+hold up on months they weren't tuned on.
+
+## Setup
+
+1. In Alpaca, create a **separate paper account** for this bot (Alpaca
+   allows several) and generate its API keys. **Don't reuse ALBOT's paper
+   keys:** this bot sells SPY every afternoon, which would undo the allocator.
+2. In this repo: Settings → Secrets and variables → Actions:
+   - `APCA_API_KEY_ID` (must start with `PK`)
+   - `APCA_API_SECRET_KEY`
+3. Actions → **daytrader** → Run workflow to test. A healthy run logs a line
+   like `outside …` or `scores …`. `no paper keys` means the secrets are
+   missing.
+
+The schedule runs every 10 minutes from about 7 AM to 5:50 PM ET on weekdays
+(it covers both daylight and standard time). Runs outside market hours do
+nothing.
+
+Do not commit keys.
+
+## Files
+
+| file | purpose |
+|---|---|
+| `engine.py` | one trading cycle (scoring, entries, brackets, flatten, halts) |
+| `scheduler.py` | entry point; loops every 10 min if self-hosted |
+| `watchdog.py` | restarts `scheduler.py` if self-hosted and it stalls |
+| `events.json` | macro event blackout dates |
+| `replay.py` | read-only replay of past days through the rules |
