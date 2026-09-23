@@ -12,7 +12,10 @@
 name: daytrader
 on:
   schedule:
-    - cron: "*/10 12-21 * * 1-5"
+    # Minute 3,13,23,... rather than :00/:10: GitHub drops scheduled runs
+    # most often in the congested top-of-hour slots. The flatten still runs
+    # by ~15:33, well before the close.
+    - cron: "3-59/10 12-21 * * 1-5"
   workflow_dispatch:
 # One cycle at a time: a manual run overlapping a scheduled one could
 # otherwise both see no position and both buy.
