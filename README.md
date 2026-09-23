@@ -98,6 +98,20 @@ nothing.
 
 Do not commit keys.
 
+## Read-only Alpaca access in Claude chats (optional)
+
+`.mcp.json` starts Alpaca's official MCP server (`scripts/alpaca-mcp.sh`) so
+Claude can look at this bot's paper account (account, positions, orders,
+history, quotes, bars, news) directly in chat. It is not used by the bot.
+
+- Needs this bot's **paper** keys as environment variables
+  `APCA_API_KEY_ID` / `APCA_API_SECRET_KEY` in the Claude environment, and
+  network access to `paper-api.alpaca.markets` and `data.alpaca.markets`.
+- The launcher refuses non-paper keys and pins the paper endpoint.
+- Every tool that can place, change or cancel orders, close positions,
+  exercise options or change account settings is denied in
+  `.claude/settings.json`. Never give it ALBOT's keys.
+
 ## Files
 
 | file | purpose |

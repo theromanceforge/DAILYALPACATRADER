@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "alpaca": {
+      "command": "bash",
+      "args": ["scripts/alpaca-mcp.sh"]
+    }
+  }
+}
