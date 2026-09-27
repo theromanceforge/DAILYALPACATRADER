@@ -10,9 +10,12 @@ separately so it can be developed and tested without touching that account.
 
 ## What it does (`engine.py`)
 
-GitHub Actions runs one cycle every 10 minutes on weekdays (`daytrader`
-workflow). Times come from Alpaca's market clock, so holidays and 1:00 PM
-early closes are handled.
+The `daytrader` workflow runs one cycle every 10 minutes. Each run keeps
+looping until the day's session is over (`scheduler.run_session`), so any
+single trigger covers the rest of the day, including the 3:30 flatten. A
+run that nears GitHub's 6-hour job limit starts its own follow-up run.
+Times come from Alpaca's market clock, so holidays and 1:00 PM early
+closes are handled.
 
 - **Entries:** 09:45 to close − 60 min. Buys only when a symbol gapped up
   **and** is trading in the upper part of today's range (score ≥ 75).
@@ -92,17 +95,20 @@ hold up on months they weren't tuned on.
    like `outside …` or `scores …`. `no paper keys` means the secrets are
    missing.
 
-The schedule runs every 10 minutes from about 7 AM to 5:50 PM ET on weekdays
-(it covers both daylight and standard time). Runs outside market hours do
-nothing.
+Triggers are scheduled every 10 minutes from about 7 AM to 5:50 PM ET on
+weekdays (covering both daylight and standard time). While a run is looping,
+extra triggers queue behind it; a run that starts after the close exits
+after one check.
 
 Do not commit keys.
 
 ### External timer (why the bot doesn't rely on GitHub's schedule alone)
 
-GitHub's `schedule` trigger never fired for this repo after setup (zero
-scheduled runs, even after moving the cron off the busy :00 slots). So an
-outside timer (cron-job.org) starts the workflows through GitHub's API:
+GitHub's `schedule` trigger is unreliable for this repo: nothing for the
+first day, then only about two runs a day (around 12:23 and 4:03 PM ET).
+The session loop makes one trigger enough for the rest of the day, but the
+morning needs an early trigger. An outside timer (cron-job.org) provides it
+through GitHub's API:
 
 - `daytrader`: every 10 minutes, Mon–Fri 12:00–21:59 UTC, `POST
   /repos/theromanceforge/DAILYALPACATRADER/actions/workflows/daytrader.yml/dispatches`
@@ -114,7 +120,7 @@ outside timer (cron-job.org) starts the workflows through GitHub's API:
   expires; if it lapses the jobs return 401 and the bot stops running.
 
 The GitHub cron stays as a backup. Running both is safe: the `daytrader`
-concurrency group runs one cycle at a time, and `entered_today()` checks
+concurrency group runs one run at a time (extra triggers wait), and `entered_today()` checks
 Alpaca's order history, so a second cycle can't make a second entry. To
 turn the timer off, pause the jobs in cron-job.org.
 
