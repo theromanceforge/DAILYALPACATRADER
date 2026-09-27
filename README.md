@@ -23,6 +23,8 @@ closes are handled.
   shares within a $2,500 notional cap.
 - **Exits:** bracket order with a 0.6% stop and a 1.2% target (GTC legs), and
   everything is flattened at close − 30 min (3:30 PM normally).
+  A position left over from an earlier day (flatten missed) is closed on
+  the first cycle of the next session.
 - **No new entries** inside the `events.json` blackout windows (FOMC, jobs,
   CPI). Add new dates when the log says the list has run out.
 - **Loss halts:** stops trading for the day at −$100 and for the week at

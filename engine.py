@@ -364,6 +364,15 @@ def cycle() -> None:
         if mv < TOY_MAX:
             if flatten(p["symbol"], f"flatten-toy ${mv:.2f}", is_open):
                 held = [x for x in held if x.get("symbol") != p.get("symbol")]
+    # This is an intraday desk: a position still held with no buy today
+    # was left over from an earlier session (the close flatten was
+    # missed). Close it at the first open cycle instead of carrying it
+    # until today's flatten. Skipped if order history is unavailable.
+    # Nothing else happens this cycle, so a new entry can't race the close.
+    if is_open and held and entered_today(now) is False:
+        for p in held:
+            flatten(p["symbol"], "flatten-leftover", is_open)
+        return
     if is_open and now >= close_dt - timedelta(minutes=FLAT_BEFORE_CLOSE_MIN):
         for p in held:
             flatten(p["symbol"], "flatten", is_open)
