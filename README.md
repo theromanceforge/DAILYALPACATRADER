@@ -104,27 +104,28 @@ after one check.
 
 Do not commit keys.
 
-### External timer (why the bot doesn't rely on GitHub's schedule alone)
+### Morning start (why the bot doesn't rely on GitHub's schedule alone)
 
-GitHub's `schedule` trigger is unreliable for this repo: nothing for the
-first day, then only about two runs a day (around 12:23 and 4:03 PM ET).
-The session loop makes one trigger enough for the rest of the day, but the
-morning needs an early trigger. An outside timer (cron-job.org) provides it
-through GitHub's API:
+GitHub's `schedule` trigger is unreliable for this repo: it has fired about
+twice a day (around 12:20 and 4:00 PM ET, sometimes later) and never near
+the open. The session loop makes one trigger enough for the rest of the day,
+so what the bot needs is one start before the 9:45 entry window.
 
-- `daytrader`: every 10 minutes, Mon–Fri 12:00–21:59 UTC, `POST
-  /repos/theromanceforge/DAILYALPACATRADER/actions/workflows/daytrader.yml/dispatches`
-  with body `{"ref":"main"}`.
-- `report`: Mon–Fri 21:37 UTC, same for `report.yml` with
-  `{"ref":"main","inputs":{"date":""}}`.
-- Auth: a fine-grained GitHub token limited to this repo with **Actions:
-  read and write** only, stored only in cron-job.org. Renew it before it
-  expires; if it lapses the jobs return 401 and the bot stops running.
+A Claude routine in the owner's Claude project provides it: **"Trendy bot
+morning start"**, 9:15 AM ET (America/New_York) Mon–Fri. It dispatches
+`daytrader.yml` on `main` through the owner's GitHub connection, so no token
+is stored anywhere. A run that starts before the open waits for it, so the
+time works in both daylight and standard time. To turn it off, pause the
+routine in Claude.
 
 The GitHub cron stays as a backup. Running both is safe: the `daytrader`
 concurrency group runs one run at a time (extra triggers wait), and `entered_today()` checks
-Alpaca's order history, so a second cycle can't make a second entry. To
-turn the timer off, pause the jobs in cron-job.org.
+Alpaca's order history, so a second cycle can't make a second entry. The
+`report` workflow still relies on GitHub's schedule; a late report is only
+late, not wrong.
+
+(An earlier version of this README described a cron-job.org timer. It was
+never set up: no external dispatch ever reached this repo.)
 
 ## Read-only Alpaca access in Claude chats (optional)
 

@@ -2,7 +2,8 @@
 # session is over (scheduler.run_session), so ANY trigger covers the rest
 # of the day, including the close-30 flatten. GitHub's own schedule has
 # proved sparse (about two runs a day), so the loop, not the cron, is what
-# keeps the bot running; an external timer (see README) can add triggers.
+# keeps the bot running; a 9:15 AM ET Claude routine (see README) gives it
+# its morning start.
 # Repo secrets: APCA_API_KEY_ID, APCA_API_SECRET_KEY (PK paper only) from a
 # paper account used ONLY by this bot (not the ALBOT allocator account).
 #
