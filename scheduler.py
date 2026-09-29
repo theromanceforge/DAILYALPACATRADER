@@ -18,6 +18,8 @@ from datetime import datetime
 from engine import ALPACA, ET, api, cycle, hhmm, log, now_et
 
 INTERVAL_SECONDS = 600
+# With stay_on, wake this long before the open so the first cycle is ready.
+PRE_OPEN_SECONDS = 600
 
 
 def safe_cycle():
@@ -44,23 +46,57 @@ def session_over(now) -> bool:
     return now.weekday() >= 5 or hhmm(now) >= "16:05"
 
 
-def run_session(budget_minutes: float) -> bool:
+def wait_for_open(now):
+    # Seconds to sleep so the next cycle lands PRE_OPEN_SECONDS before
+    # Alpaca's next regular open; 0 while the market is open or the open
+    # is close; None if the clock can't be read.
+    st, body = api(ALPACA, "/v2/clock")
+    if st == 200 and isinstance(body, dict):
+        try:
+            if body["is_open"]:
+                return 0.0
+            next_open = datetime.fromisoformat(body["next_open"]).astimezone(ET)
+            return max(0.0, (next_open - now).total_seconds() - PRE_OPEN_SECONDS)
+        except (KeyError, TypeError, ValueError):
+            pass
+    return None
+
+
+def run_session(budget_minutes: float, stay_on: bool = False) -> bool:
     """Run cycles until the session is over or the budget is spent.
 
-    Returns True if the budget ran out while the session is still going,
-    i.e. the caller should start a fresh run to carry on.
+    With stay_on, the run doesn't stop at the close: it sleeps until
+    shortly before the next open and carries on, handing over to a new
+    run each time the budget runs out. One trigger then keeps the bot
+    running across nights and weekends, so it no longer needs an
+    on-time trigger each morning.
+
+    Returns True if the budget ran out and the caller should start a
+    fresh run to carry on.
     """
     start = time.monotonic()
     while True:
         began = time.monotonic()
         safe_cycle()
-        if session_over(now_et()):
-            log("session over; loop done")
-            return False
-        elapsed = (time.monotonic() - start) / 60
-        wait = max(0.0, INTERVAL_SECONDS - (time.monotonic() - began))
-        if elapsed + wait / 60 > budget_minutes:
-            log(f"budget spent after {elapsed:.0f} min; handing over to a new run")
+        if not stay_on:
+            if session_over(now_et()):
+                log("session over; loop done")
+                return False
+            wait = max(0.0, INTERVAL_SECONDS - (time.monotonic() - began))
+        else:
+            idle = wait_for_open(now_et())
+            if idle:
+                log(f"market closed; next cycle in {idle / 60:.0f} min, before the next open")
+                wait = idle
+            else:
+                # Open, opening soon, or clock unreadable: normal cadence.
+                wait = max(0.0, INTERVAL_SECONDS - (time.monotonic() - began))
+        left = budget_minutes * 60 - (time.monotonic() - start)
+        if wait > left:
+            # Sleep out this run's budget first, so an overnight wait
+            # takes a few long runs rather than a burst of short ones.
+            time.sleep(max(0.0, left))
+            log(f"budget spent after {budget_minutes:.0f} min; handing over to a new run")
             return True
         time.sleep(wait)
 

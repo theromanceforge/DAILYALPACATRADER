@@ -10,10 +10,12 @@ separately so it can be developed and tested without touching that account.
 
 ## What it does (`engine.py`)
 
-The `daytrader` workflow runs one cycle every 10 minutes. Each run keeps
-looping until the day's session is over (`scheduler.run_session`), so any
-single trigger covers the rest of the day, including the 3:30 flatten. A
-run that nears GitHub's 6-hour job limit starts its own follow-up run.
+The `daytrader` workflow runs one cycle every 10 minutes while the market
+is open. Runs never stop on their own (`scheduler.run_session` with
+`stay_on`): after the close a run sleeps until 10 minutes before the next
+open, and a run that nears GitHub's 6-hour job limit starts its own
+follow-up run. So once any trigger has started it, the bot keeps itself
+running across nights, weekends and holidays.
 Times come from Alpaca's market clock, so holidays and 1:00 PM early
 closes are handled.
 
@@ -104,25 +106,27 @@ after one check.
 
 Do not commit keys.
 
-### Morning start (why the bot doesn't rely on GitHub's schedule alone)
+### Staying on (why the bot doesn't rely on GitHub's schedule)
 
 GitHub's `schedule` trigger is unreliable for this repo: it has fired about
-twice a day (around 12:20 and 4:00 PM ET, sometimes later) and never near
-the open. The session loop makes one trigger enough for the rest of the day,
-so what the bot needs is one start before the 9:45 entry window.
+twice a day (around 12:20 and 4:00 PM ET, sometimes after 7 PM) and never
+near the open. So the bot doesn't wait for a morning trigger: each run
+hands over to the next one (via `GITHUB_TOKEN`), overnight and over the
+weekend, and is already running when the market opens. About four runs
+cover a weeknight and twelve a weekend, mostly asleep; the repo is public,
+so Actions minutes are free.
 
-A Claude routine in the owner's Claude project provides it: **"Trendy bot
-morning start"**, 9:15 AM ET (America/New_York) Mon–Fri. It dispatches
-`daytrader.yml` on `main` through the owner's GitHub connection, so no token
-is stored anywhere. A run that starts before the open waits for it, so the
-time works in both daylight and standard time. To turn it off, pause the
-routine in Claude.
+If the chain ever breaks (a failed run, GitHub outage), the next trigger of
+any kind restarts it: GitHub's cron, the **"Trendy bot morning start"**
+Claude routine (9:15 AM ET Mon–Fri, dispatches `daytrader.yml` through the
+owner's GitHub connection), or Actions → daytrader → Run workflow. Running
+several is safe: the `daytrader` concurrency group runs one run at a time
+(an extra trigger waits, and a newer one replaces it), and `entered_today()`
+checks Alpaca's order history, so a second cycle can't make a second entry.
 
-The GitHub cron stays as a backup. Running both is safe: the `daytrader`
-concurrency group runs one run at a time (extra triggers wait), and `entered_today()` checks
-Alpaca's order history, so a second cycle can't make a second entry. The
-`report` workflow still relies on GitHub's schedule; a late report is only
-late, not wrong.
+To stop the bot, disable the `daytrader` workflow (Actions → daytrader →
+⋯ → Disable workflow) and cancel the running run. The `report` workflow
+still relies on GitHub's schedule; a late report is only late, not wrong.
 
 (An earlier version of this README described a cron-job.org timer. It was
 never set up: no external dispatch ever reached this repo.)
@@ -146,7 +150,7 @@ history, quotes, bars, news) directly in chat. It is not used by the bot.
 | file | purpose |
 |---|---|
 | `engine.py` | one trading cycle (scoring, entries, brackets, flatten, halts) |
-| `scheduler.py` | entry point; loops every 10 min if self-hosted |
+| `scheduler.py` | entry point: `run_session` for Actions (stays on across nights), or loops every 10 min if self-hosted |
 | `watchdog.py` | restarts `scheduler.py` if self-hosted and it stalls |
 | `events.json` | macro event blackout dates |
 | `replay.py` | read-only replay of past days through the rules |
