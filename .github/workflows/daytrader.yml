@@ -1,17 +1,19 @@
-# Free runner. Each run loops one cycle every 10 minutes until today's
-# session is over (scheduler.run_session), so ANY trigger covers the rest
-# of the day, including the close-30 flatten. GitHub's own schedule has
-# proved sparse (about two runs a day), so the loop, not the cron, is what
-# keeps the bot running; a 9:15 AM ET Claude routine (see README) gives it
-# its morning start.
+# Free runner. Each run loops one cycle every 10 minutes while the market
+# is open and sleeps until just before the next open when it's closed
+# (scheduler.run_session, stay_on), handing over to a new run near the
+# job limit. So ANY trigger keeps the bot running from then on, across
+# nights and weekends. GitHub's own schedule has proved sparse (about two
+# runs a day); it and a 9:15 AM ET Claude routine (see README) only
+# restart the chain if it ever breaks.
 # Repo secrets: APCA_API_KEY_ID, APCA_API_SECRET_KEY (PK paper only) from a
 # paper account used ONLY by this bot (not the ALBOT allocator account).
 #
 # Cron is in UTC and does not shift for US DST: 12-21 UTC covers the
 # session in both EDT and EST. Extra triggers while a run is looping just
-# queue behind it (concurrency group) and exit at once if the session is
-# over. If every run somehow misses the flatten, the GTC stop/target legs
-# still protect the position overnight.
+# queue behind it (concurrency group; a newer pending run replaces an
+# older one), so there is only ever one chain. If every run somehow
+# misses the flatten, the GTC stop/target legs still protect the
+# position overnight.
 name: daytrader
 on:
   schedule:
@@ -55,7 +57,7 @@ jobs:
           python3 - <<'PY'
           import os
           import scheduler
-          chain = scheduler.run_session(budget_minutes=330)
+          chain = scheduler.run_session(budget_minutes=330, stay_on=True)
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write(f"chain={'true' if chain else 'false'}\n")
           print("done", scheduler.hhmm(), "chain" if chain else "session over")
