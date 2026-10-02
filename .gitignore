@@ -3,3 +3,4 @@
 book.tmp
 __pycache__/
 *.pyc
+scan.json

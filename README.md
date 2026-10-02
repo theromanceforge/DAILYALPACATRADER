@@ -131,6 +131,23 @@ still relies on GitHub's schedule; a late report is only late, not wrong.
 (An earlier version of this README described a cron-job.org timer. It was
 never set up: no external dispatch ever reached this repo.)
 
+## Daily trend scan (`scanner.py`)
+
+Read-only. After each close the `scan` workflow ranks liquid US stocks and
+ETFs (a fixed list of big caps and sector ETFs plus Alpaca's 50 most active
+names, at least $10 and $250M a day traded) by trend strength and comments
+the top 20 uptrends on the `market-scan` issue. Watch that issue to get it
+as a notification.
+
+- **Score:** average of the 3- and 6-month returns divided by annualised
+  volatility. Only names with close > 50-day average > 200-day average make
+  the top 20.
+- **Context lines:** SPY above or below its 200-day, and breadth (share of
+  names above their 50-day).
+- The full table is saved as `scan.json` (run artifact). The bot does not
+  use the scan; feeding it into what the bot trades is a separate change
+  that has to pass the replay first.
+
 ## Read-only Alpaca access in Claude chats (optional)
 
 `.mcp.json` starts Alpaca's official MCP server (`scripts/alpaca-mcp.sh`) so
@@ -156,4 +173,5 @@ history, quotes, bars, news) directly in chat. It is not used by the bot.
 | `replay.py` | read-only replay of past days through the rules |
 | `report.py` | end-of-day report posted to the `daily-report` issue |
 | `noise.py` | noise-area momentum rules (Zarattini et al. 2024) and 10-year test |
+| `scanner.py` | read-only daily trend scan, top 20 posted to the `market-scan` issue |
 | `shadow.py` | QQQ noise-area forward test, logging only (in the daily report) |
