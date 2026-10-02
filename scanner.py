@@ -7,7 +7,7 @@ Read-only: places no orders and changes nothing the bot uses.
 
 Universe: a fixed list of big caps and major ETFs plus Alpaca's 50 most
 active stocks by volume today. Names under $10 or under $250M average
-daily dollar volume are dropped, so the scan only lists things the bot
+daily dollar volume are dropped, and so are leveraged and inverse ETFs, so the scan only lists things the bot
 could trade in size without slippage worries.
 
 Trend score (higher = stronger, steadier uptrend):
@@ -26,7 +26,9 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import sys
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 
 import engine
@@ -61,6 +63,19 @@ def most_actives(top=50):
         print(f"most-actives unavailable ({st}); scanning the core list only")
         return []
     return [r["symbol"] for r in body.get("most_actives") or [] if r.get("symbol")]
+
+
+# Leveraged and inverse ETFs show up among the most active names but
+# track a multiple of something else's daily move, so their trends mislead.
+LEVERAGED = re.compile(r"\b(2x|3x|-1x|-2x|-3x|ultra\w*|leveraged|inverse|bull|bear|daily target)\b", re.I)
+
+
+def plain(sym):
+    # True for a tradable, non-leveraged asset.
+    st, body = engine.api(engine.ALPACA, f"/v2/assets/{urllib.parse.quote(sym)}")
+    if st != 200 or not isinstance(body, dict):
+        return False
+    return bool(body.get("tradable")) and not LEVERAGED.search(body.get("name") or "")
 
 
 def sma(xs, n):
@@ -101,12 +116,17 @@ def metrics(sym, rows):
 
 
 def scan():
-    universe = list(dict.fromkeys(CORE + tuple(most_actives())))
+    extra = [s for s in most_actives() if s not in CORE]
+    dropped = [s for s in extra if not plain(s)]
+    if dropped:
+        print(f"skipped leveraged/inverse or untradable: {' '.join(dropped)}")
+    universe = list(CORE) + [s for s in extra if s not in dropped]
     now = datetime.now(ET)
     # Before 4:20 PM ET today's daily bar is still forming (or missing), so
     # stop at midnight; after it, stay 20 min back (free plan: SIP needs 15).
     if now.hour * 60 + now.minute < 16 * 60 + 20:
-        end = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        # Daily bars are stamped at midnight ET, so stop just before today's.
+        end = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(minutes=1)
     else:
         end = now - timedelta(minutes=20)
     start = end - timedelta(days=HISTORY_DAYS)
