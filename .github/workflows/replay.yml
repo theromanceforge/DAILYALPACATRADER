@@ -33,7 +33,9 @@ jobs:
           REPLAY_END: ${{ inputs.end }}
           REPLAY_DAYS: ${{ inputs.days }}
         run: |
-          if [ -n "$REPLAY_DAYS" ]; then
+          if [ "$REPLAY_DAYS" = "tune" ]; then
+            python3 tune.py "$REPLAY_DATE" "$REPLAY_END"
+          elif [ -n "$REPLAY_DAYS" ]; then
             python3 replay.py --days "$REPLAY_DAYS"
           else
             python3 replay.py "$REPLAY_DATE" "$REPLAY_END"
