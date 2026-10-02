@@ -1,0 +1,43 @@
+# Daily trend scan: top 20 uptrends among liquid US stocks and ETFs,
+# posted as a comment on the `market-scan` issue. Read-only on Alpaca:
+# places no orders and the bot does not use it.
+#
+# 21:52 UTC is after the close year-round (off the congested :00/:30
+# slots). Uses daily bars, so a late run is still correct. Pull requests
+# that change the scanner run it too, without posting, as a check.
+name: scan
+on:
+  schedule:
+    - cron: "52 21 * * 1-5"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scanner.py"
+      - ".github/workflows/scan.yml"
+permissions:
+  contents: read
+  issues: write
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: scan
+        env:
+          APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+          APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TZ: America/New_York
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python3 scanner.py
+          else
+            python3 scanner.py --post
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scan
+          path: scan.json
