@@ -39,10 +39,13 @@ def get(path, params=None):
     return body
 
 
-def fills(day):
-    # All fills for the ET calendar day, oldest first.
+def fills(day, days_back=0):
+    # All fills for the ET calendar day (or the days_back days before
+    # it, when days_back > 0), oldest first.
     start = datetime.combine(day, datetime.min.time(), ET).astimezone(timezone.utc)
     end = start + timedelta(days=1)
+    if days_back:
+        start, end = start - timedelta(days=days_back), start
     return get("/v2/account/activities/FILL", {
         "after": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "until": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -80,6 +83,23 @@ def round_trips(rows):
     return out
 
 
+def carried_entry(day, sym, qty):
+    # A sale today with no buy today closes a position bought on an
+    # earlier day (a missed flatten). Find that buy in the previous two
+    # weeks: the latest buy fills of sym adding up to qty.
+    rows = [r for r in fills(day, days_back=14)
+            if r["symbol"] == sym and r["side"] == "buy"]
+    got, cost, first = 0.0, 0.0, None
+    for r in reversed(rows):
+        q = min(float(r["qty"]), qty - got)
+        got += q
+        cost += q * float(r["price"])
+        first = datetime.fromisoformat(r["transaction_time"].replace("Z", "+00:00")).astimezone(ET)
+        if got >= qty - 1e-9:
+            return cost / got, first
+    return None, None
+
+
 def total_since_start(equity_now):
     # Change since the account's first recorded equity (up to a year back).
     hist = get("/v2/account/portfolio/history", {"period": "1A", "timeframe": "1D"})
@@ -101,6 +121,13 @@ def build(day):
     equity = float(acct["equity"])
     is_today = day == datetime.now(ET).date()
     trips = round_trips(fills(day))
+    for t in trips:
+        if t["entry"] is None and t["exit"] is not None:
+            entry, bought = carried_entry(day, t["symbol"], t["qty"])
+            t["carried"] = bought
+            if entry is not None:
+                t["entry"], t["in"] = entry, bought
+                t["pl"] = (t["exit"] - entry) * t["qty"]
     lines = [f"### {day:%a %Y-%m-%d}", ""]
     if is_today:
         day_pl = equity - float(acct["last_equity"])
@@ -108,10 +135,17 @@ def build(day):
     if trips:
         lines += ["", "| symbol | qty | in | entry | out | exit | P&L |", "|---|---|---|---|---|---|---|"]
         for t in trips:
+            if "carried" in t:
+                # Bought on an earlier day: show that day, or "earlier"
+                # if the buy wasn't found.
+                when = f"{t['in']:%a %H:%M}" if t["carried"] else "earlier"
+                entry = f"{t['entry']:.2f}" if t["carried"] else "–"
+            else:
+                when, entry = f"{t['in']:%H:%M}", f"{t['entry'] or 0:.2f}"
             lines.append(
-                f"| {t['symbol']} | {t['qty']:g} | {t['in']:%H:%M} | {t['entry'] or 0:.2f} | "
+                f"| {t['symbol']} | {t['qty']:g} | {when} | {entry} | "
                 f"{t['out']:%H:%M} | {t['exit'] or 0:.2f} | {money(t['pl'])} |" if t["out"] else
-                f"| {t['symbol']} | {t['qty']:g} | {t['in']:%H:%M} | {t['entry'] or 0:.2f} | open | – | – |"
+                f"| {t['symbol']} | {t['qty']:g} | {when} | {entry} | open | – | – |"
             )
         # GitHub cron runs can start late; record how late the close flatten ran.
         close_dt = datetime.fromisoformat(f"{day}T{cal[0]['close']}").replace(tzinfo=ET)

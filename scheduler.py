@@ -20,6 +20,9 @@ from engine import ALPACA, ET, api, cycle, hhmm, log, now_et
 INTERVAL_SECONDS = 600
 # With stay_on, wake this long before the open so the first cycle is ready.
 PRE_OPEN_SECONDS = 600
+# Cycles land this many seconds after each :00/:10/:20... mark, so a
+# cycle falls just after 15:30 and the flatten isn't up to 10 min late.
+GRID_OFFSET_SECONDS = 5
 
 
 def safe_cycle():
@@ -44,6 +47,13 @@ def session_over(now) -> bool:
             pass
     log(f"clock unavailable {st} {body}; using 16:05 ET as the end of session")
     return now.weekday() >= 5 or hhmm(now) >= "16:05"
+
+
+def until_next_mark(now) -> float:
+    # Seconds until the next 10-minute clock mark (plus the offset).
+    into = (now.minute % 10) * 60 + now.second + now.microsecond / 1e6
+    wait = (GRID_OFFSET_SECONDS - into) % INTERVAL_SECONDS
+    return wait if wait >= 1 else wait + INTERVAL_SECONDS
 
 
 def wait_for_open(now):
@@ -76,21 +86,21 @@ def run_session(budget_minutes: float, stay_on: bool = False) -> bool:
     """
     start = time.monotonic()
     while True:
-        began = time.monotonic()
         safe_cycle()
         if not stay_on:
             if session_over(now_et()):
                 log("session over; loop done")
                 return False
-            wait = max(0.0, INTERVAL_SECONDS - (time.monotonic() - began))
+            wait = until_next_mark(now_et())
         else:
             idle = wait_for_open(now_et())
             if idle:
                 log(f"market closed; next cycle in {idle / 60:.0f} min, before the next open")
                 wait = idle
             else:
-                # Open, opening soon, or clock unreadable: normal cadence.
-                wait = max(0.0, INTERVAL_SECONDS - (time.monotonic() - began))
+                # Open, opening soon, or clock unreadable: normal cadence,
+                # on the 10-minute clock marks.
+                wait = until_next_mark(now_et())
         left = budget_minutes * 60 - (time.monotonic() - start)
         if wait > left:
             # Sleep out this run's budget first, so an overnight wait
