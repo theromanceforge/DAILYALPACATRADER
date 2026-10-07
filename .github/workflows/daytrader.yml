@@ -75,4 +75,13 @@ jobs:
         if: steps.loop.outputs.chain == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run daytrader.yml --ref "${{ github.ref_name }}" --repo "${{ github.repository }}"
+        # GitHub's dispatch API sometimes answers HTTP 500 (it did on
+        # 2026-10-07 and the bot sat idle for 2.5 h), so retry with backoff
+        # for about 7 minutes before giving up.
+        run: |
+          for i in 1 2 3 4 5 6; do
+            gh workflow run daytrader.yml --ref "${{ github.ref_name }}" --repo "${{ github.repository }}" && exit 0
+            echo "hand-over dispatch failed (attempt $i); retrying in $((i * 20)) s"
+            sleep $((i * 20))
+          done
+          exit 1
